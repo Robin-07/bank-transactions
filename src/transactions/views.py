@@ -1,10 +1,14 @@
-from rest_framework.views import APIView 
-from rest_framework.response import Response
-from rest_framework.status import HTTP_200_OK
+from rest_framework import views, response, status 
+from .serializers import BalanceSerializer, TransferAmountSerializer
 
-class TransferAPIView(APIView):
 
-    authentication_classes = ()
-
+class CreateAccountAPIView(views.APIView):
     def post(self, request):
-        return Response(status = HTTP_200_OK)
+        serializer = BalanceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return response.Response(data=serializer.validated_data, status = status.HTTP_200_OK)
+
+class TransferAmountAPIView(views.APIView):
+    def post(self, request):
+        return response.Response(status = status.HTTP_200_OK)
