@@ -1,5 +1,9 @@
 from rest_framework import views, response, status 
 from .serializers import BalanceSerializer, TransferAmountSerializer
+from django.db import connection
+
+
+cursor = connection.cursor()
 
 
 class CreateAccountAPIView(views.APIView):
@@ -11,4 +15,7 @@ class CreateAccountAPIView(views.APIView):
 
 class TransferAmountAPIView(views.APIView):
     def post(self, request):
-        return response.Response(status = status.HTTP_200_OK)
+        serializer = TransferAmountSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        # serializer.save()
+        return response.Response(data=serializer.validated_data,status = status.HTTP_200_OK)
