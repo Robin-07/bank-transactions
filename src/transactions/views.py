@@ -17,5 +17,4 @@ class TransferAmountAPIView(views.APIView):
     def post(self, request):
         serializer = TransferAmountSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        # serializer.save()
-        return response.Response(data=serializer.validated_data,status = status.HTTP_200_OK)
+        return response.Response(data=serializer.save(),status = status.HTTP_200_OK)
