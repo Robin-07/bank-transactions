@@ -31,3 +31,7 @@ def check_unwanted_transfer(sender_acc_no, now, cursor, errors):
         time_difference = (now - last_transaction_time[0]).total_seconds()
         if time_difference < 10:
             errors['errors'].update({ 'Transfer Failure' : 'There must be a 10 second difference between transactions' })
+
+def update_balance(balance, id, cursor):
+    cursor.execute('''UPDATE transactions_Balance SET balance = %s 
+        WHERE account_no = %s''', [balance, id])
