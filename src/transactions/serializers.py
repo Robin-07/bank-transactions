@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.db import connection
+from .utils import check_account_exists, validate_account_no, validate_amount
 import datetime
 
 cursor = connection.cursor()
@@ -7,30 +8,21 @@ cursor = connection.cursor()
 class BalanceSerializer(serializers.Serializer):
     def to_internal_value(self, data):
         errors = { 'errors' : {} }
-        field_count = len(data)
         account_no = data.get('account_no')
         balance = data.get('balance')
-        if field_count != 2 or account_no is None or balance is None:
+        if len(data) != 2 or account_no is None or balance is None:
             errors['errors'].update({ 'malformed-request' : 'Payload must contain fields account_no and balance' })
         else:
-            if not account_no.isnumeric() or len(account_no) != 8:
-                errors['errors'].update({ 'account_no' : 'account_no must be numeric and 8 digits long' })
-            if not isinstance(balance, int) or balance < 0: 
-                errors['errors'].update({ 'balance' : 'balance must be a non-negative value' })
-            if not errors['errors']:
-                cursor.execute('''
-                SELECT * FROM transactions_Balance WHERE account_no = %s
-                ''', [account_no])
-                account_exists = cursor.fetchone() is not None
-                if account_exists: 
-                    errors['errors'].update({ 'account_no' : 'Account already exists' })
+            validate_account_no(account_no, 'account_no', errors)
+            validate_amount(balance, 'balance', errors)
+            check_account_exists(account_no, 'account_no', False, cursor, errors)
         if errors['errors']:
             raise serializers.ValidationError(errors)
-        response = {
+        validated_data = {
             'account_no' : account_no,
             'balance' : balance
         }
-        return response
+        return validated_data
 
     def create(self, validated_data):
         cursor.execute('''
@@ -44,37 +36,23 @@ class BalanceSerializer(serializers.Serializer):
 class TransferAmountSerializer(serializers.Serializer):
     def to_internal_value(self, data):
         errors = { 'errors' : {} }
-        field_count = len(data)
         from_acc_no = data.get('from')
         to_acc_no = data.get('to')
         amount = data.get('amount')
-        if field_count != 3 or from_acc_no is None or to_acc_no is None or amount is None:
+        if len(data) != 3 or from_acc_no is None or to_acc_no is None or amount is None:
             errors['errors'].update({ 'malformed-request' : 'Payload must contain fields from, to and amount' })
         else:
-            if not from_acc_no.isnumeric() or len(from_acc_no) != 8:
-                errors['errors'].update({ 'from' : 'account_no must be numeric and 8 digits long' })
-            if not to_acc_no.isnumeric() or len(to_acc_no) != 8:
-                errors['errors'].update({ 'to' : 'account_no must be numeric and 8 digits long' })
-            if not isinstance(amount, int) or amount < 0: 
-                errors['errors'].update({ 'amount' : 'amount must be a non-negative value' })
+            validate_account_no(from_acc_no, 'from', errors)
+            validate_account_no(to_acc_no, 'to', errors)
+            validate_amount(amount, 'amount', errors)
+            sender_balance = check_account_exists(from_acc_no, 'from', True, cursor, errors)
+            receiver_balance = check_account_exists(to_acc_no, 'to', True, cursor, errors)
             if not errors['errors']:
-                cursor.execute('''SELECT balance FROM transactions_Balance 
-                WHERE account_no = %s''', [from_acc_no])
-                sender_balance = cursor.fetchone()
-                if sender_balance is None:
-                    errors['errors'].update({ 'from' : 'Account does not exist' })
-                cursor.execute('''SELECT balance FROM transactions_Balance 
-                WHERE account_no = %s''', [to_acc_no])
-                receiver_balance = cursor.fetchone()
-                if receiver_balance is None:
-                    errors['errors'].update({ 'to' : 'Account does not exist' })
-                if not errors['errors']:
-                    insufficient_funds = sender_balance[0] < amount
-                    if insufficient_funds: 
-                        errors['errors'].update({'amount' : 'Insufficient Funds'})
+                if sender_balance[0] < amount: 
+                    errors['errors'].update({'amount' : 'Insufficient Funds'})
         if errors['errors']:
             raise serializers.ValidationError(errors)
-        response = {
+        validated_data = {
             'from' : {
                 'id' : from_acc_no,
                 'balance' : sender_balance[0] - amount
@@ -85,7 +63,7 @@ class TransferAmountSerializer(serializers.Serializer):
             },
             'transfered' : amount
         }
-        return response
+        return validated_data
 
     def create(self, validated_data):
         sender = validated_data['from']
