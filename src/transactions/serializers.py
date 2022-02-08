@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.db import connection
-from .utils import check_account_exists, validate_account_no, validate_amount
+from .utils import check_account_exists, validate_account_no, validate_amount, check_unwanted_transfer
 import datetime
 
 cursor = connection.cursor()
@@ -50,6 +50,8 @@ class TransferAmountSerializer(serializers.Serializer):
             if not errors['errors']:
                 if sender_balance[0] < amount: 
                     errors['errors'].update({'amount' : 'Insufficient Funds'})
+                else:
+                    check_unwanted_transfer(from_acc_no, datetime.datetime.now(), cursor, errors)
         if errors['errors']:
             raise serializers.ValidationError(errors)
         validated_data = {
