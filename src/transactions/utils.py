@@ -6,8 +6,8 @@ def validate_account_no(account_no, field_name, errors):
         errors['errors'].update({ f'{field_name}' : 'account number must be numeric and 8 digits long' })
 
 def validate_amount(value, field_name, errors):
-    if not isinstance(value, int) or value < 0: 
-        errors['errors'].update({ f'{field_name}' : f'{field_name} must be a non-negative integer' })
+    if not isinstance(value, int) or value < 0 or value >= 10000000: 
+        errors['errors'].update({ f'{field_name}' : f'{field_name} must be a non-negative integer less than 10000000' })
 
 def check_account_exists(account_no, field_name, account_should_exist, cursor, errors):
     if errors['errors']:  return
